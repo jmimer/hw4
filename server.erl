@@ -113,7 +113,8 @@ nick_helper(State,Ref, ClientPID, NewNick,Matches)->
 do_new_nick(State, Ref, ClientPID, NewNick) ->
 	AllNicks = maps:values(State#serv_st.nicks),
 	case lists:member(NewNick, AllNicks) of 
-		true -> 
+		true ->
+			io:format("in true"), 
 			ClientPID!{self(),Ref,err_nick_used}, 
 			State;
 		false ->
