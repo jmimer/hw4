@@ -60,20 +60,109 @@ loop(State) ->
 
 %% executes join protocol from server perspective
 do_join(ChatName, ClientPID, Ref, State) ->
-    io:format("server:do_join(...): IMPLEMENT ME~n"),
-    State.
+	case maps:is_key(ChatName, State#serv_st.chatrooms) of
+		false -> 
+			ChatPID = spawn(chatroom, start_chatroom, [ChatName]),
+			{ok, ClientNick} = maps:find(ClientPID, State#serv_st.nicks),
+			ChatPID!{self(), Ref, register, ClientPID, ClientNick},
+			#serv_st{
+				nicks = State#serv_st.nicks,
+				registrations = maps:put(ChatName,[ClientPID],State#serv_st.registrations),
+				chatrooms = maps:put(ChatName, ChatPID,State#serv_st.chatrooms)
+			};
+		true ->
+			{ok, ChatPID} = maps:find(ChatName, State#serv_st.chatrooms),
+			{ok, ClientNick} = maps:find(ClientPID, State#serv_st.nicks),
+			ChatPID!{self(), Ref, register, ClientPID, ClientNick},
+			PIDs = maps:get(ChatName, State#serv_st.registrations),
+			#serv_st{
+				nicks = State#serv_st.nicks,
+				registrations = maps:put(ChatName,[ClientPID]++PIDs,State#serv_st.registrations),
+				chatrooms = State#serv_st.chatrooms
+			}
+	end.
 
 %% executes leave protocol from server perspective
 do_leave(ChatName, ClientPID, Ref, State) ->
-    io:format("server:do_leave(...): IMPLEMENT ME~n"),
-    State.
+	ChatPID = maps:get(ChatName, State#serv_st.chatrooms),
+	PIDs = maps:get(ChatName, State#serv_st.registrations),
+	ChatPID!{self(), Ref, unregister, ClientPID},
+	ClientPID!{self(), Ref, ack_leave},
+	#serv_st{
+		nicks = State#serv_st.nicks,
+		registrations = maps:put(ChatName,PIDs--[ClientPID],State#serv_st.registrations),
+		chatrooms = State#serv_st.chatrooms
+	}.
 
 %% executes new nickname protocol from server perspective
+%% The server must now update all chatrooms to which the client belongs 
+%% that the nickname of the
+%% user has changed, by sending each relevant chatroom the message 
+%% {self(), Ref, update nick,
+
+nick_helper(State,Ref, ClientPID, NewNick,Matches)->
+	case Matches of
+		[] -> 
+			[];
+		[H|T] -> 
+			ChatPID = map:get(H, State#serv_st.chatrooms),
+			ChatPID!{self(), Ref, update_nick, ClientPID, NewNick},
+			nick_helper(State,Ref, ClientPID, NewNick,T)
+	end.
+
 do_new_nick(State, Ref, ClientPID, NewNick) ->
-    io:format("server:do_new_nick(...): IMPLEMENT ME~n"),
-    State.
+	AllNicks = maps:value(State#serv_st.nicks),
+	case lists:member(NewNick, AllNicks) of 
+		true -> 
+			ClientPID!{self(),Ref,err_nick_used}, 
+			State;
+		false ->
+			AllChatRoomNames = maps:keys(State#serv_st.registrations),
+			Matches = lists:filter(fun(X) -> lists:member(ClientPID, map:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
+			nick_helper(State,Ref, ClientPID,NewNick,Matches),
+			ClientPID!{self(),Ref,ok_nick},
+			#serv_st{
+				nicks = maps:update(ClientPID, NewNick, State#serv_st.nicks),
+				registrations = State#serv_st.registrations,
+			 	chatrooms = State#serv_st.chatrooms
+			}
+	end.
+quick_helper(State,Ref, ClientPID,Matches)->
+	case Matches of
+		[] -> 
+			[];
+		[H|T] -> 
+			ChatPID = map:get(H, State#serv_st.chatrooms),
+			ChatPID!{self(), Ref, unregister, ClientPID},
+			quick_helper(State,Ref, ClientPID,T)
+	end.
+update_registrations(State, ClientPID, Matches)->
+	case Matches of
+		[] ->
+			[];
+		[H|T] ->
+			ClientPIDs = map:get(H, State#serv_st.registrations),
+			Updated = lists:delete(ClientPID, ClientPIDs),
+			maps:update(H, Updated, State#serv_st.registrations),
+			update_registrations(State, ClientPID, T)
+	end.
 
 %% executes client quit protocol from server perspective
+%%Tell each chatroom to which the client is registered that the client is leaving. To do so, send
+%% the message {self(), Ref, unregister, ClientPID} [C] to each chatroom in which
+%% the client is registered. Note that this is the same message as when a client asks to leave a
+%% chatroom, so this should be handled already
 do_client_quit(State, Ref, ClientPID) ->
-    io:format("server:do_client_quit(...): IMPLEMENT ME~n"),
-    State.
+	UpdatedNicks = maps:remove(ClientPID, State#serv_st.nicks),
+	AllChatRoomNames = maps:keys(State#serv_st.registrations),
+	Matches = lists:filter(fun(X) -> lists:member(ClientPID, map:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
+	quick_helper(State,Ref, ClientPID,Matches),
+	UpdatedRegistrations = update_registrations(State,ClientPID,Matches),
+	ClientPID!{self(), Ref, ack_quit},
+	#serv_st{
+		nicks = UpdatedNicks,
+		registrations = UpdatedRegistrations,
+		chatrooms = State#serv_st.chatrooms
+	}.
+
+

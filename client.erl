@@ -107,23 +107,56 @@ loop(State, Request, Ref) ->
 
 %% executes `/join` protocol from client perspective
 do_join(State, Ref, ChatName) ->
-    io:format("client:do_join(...): IMPLEMENT ME~n"),
-    {{dummy_target, dummy_response}, State}.
+	case maps:is_key(ChatName, State#cl_st.con_ch) of
+		true -> {err, State};
+		false -> whereis(server)!{self(),Ref, join, ChatName},
+				receive {ChatPID, Ref, connect, History} ->
+					{History, #cl_st {
+					gui = State#cl_st.gui,
+					nick = State#cl_st.nick,
+					con_ch = maps:put(ChatName, ChatPID, State#cl_st.con_ch)
+					}}
+				end
+	end.
 
 %% executes `/leave` protocol from client perspective
 do_leave(State, Ref, ChatName) ->
-    io:format("client:do_leave(...): IMPLEMENT ME~n"),
-    {{dummy_target, dummy_response}, State}.
+	case maps:is_key(ChatName, State#cl_st.con_ch) of
+		false -> {err, State};
+		true -> whereis(server)!{self(),Ref, leave, ChatName},
+				receive {ChatPID, Ref, ack_leave, History} ->
+					{ok, #cl_st {
+					gui = State#cl_st.gui,
+					nick = State#cl_st.nick,
+					con_ch = maps:remove(ChatName,State#cl_st.con_ch)
+					}}
+				end
+	end.
+
 
 %% executes `/nick` protocol from client perspective
 do_new_nick(State, Ref, NewNick) ->
-    io:format("client:do_new_nick(...): IMPLEMENT ME~n"),
-    {{dummy_target, dummy_response}, State}.
+	case NewNick == State#cl_st.nick of
+		true -> {err_same, State};
+		false -> whereis(server)!{self(),Ref, nick, NewNick},
+			receive
+					{S,Ref,err_nick_used} -> {err_nick_used, State};
+					{S,Ref,ok_nick} -> {ok_nick, #cl_st {
+					gui = State#cl_st.gui,
+					nick = NewNick,
+					con_ch =State#cl_st.con_ch
+					}}
+			end
+	end.
+    
 
 %% executes send message protocol from client perspective
 do_msg_send(State, Ref, ChatName, Message) ->
-    io:format("client:do_new_nick(...): IMPLEMENT ME~n"),
-    {{dummy_target, dummy_response}, State}.
+	ChatroomPID = maps:get(ChatName, State#cl_st.con_ch),
+	ChatroomPID!{self(), Ref, message, Message},
+	receive {ChatroomPID, Ref, ack_msg} ->
+		{{msg_sent, State#cl_st.nick}, State}
+	end.
 
 %% executes new incoming message protocol from client perspective
 do_new_incoming_msg(State, _Ref, CliNick, ChatName, Msg) ->
@@ -133,5 +166,7 @@ do_new_incoming_msg(State, _Ref, CliNick, ChatName, Msg) ->
 
 %% executes quit protocol from client perspective
 do_quit(State, Ref) ->
-    io:format("client:do_new_nick(...): IMPLEMENT ME~n"),
-    {{dummy_target, dummy_response}, State}.
+	whereis(server)!{self(),Ref,quit},
+	receive {S,Ref,ack_quit} -> {ack_quit, State}
+	end.
+
