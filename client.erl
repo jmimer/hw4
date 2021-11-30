@@ -80,7 +80,7 @@ loop(State, Request, Ref) ->
 
 	%% GUI requests the nickname of client
 	whoami ->
-	    {{dummy_target, dummy_response}, State};
+	    {State#cl_st.nick, State};
 
 	%% GUI requests to update nickname to Nick
 	{nick, Nick} ->
@@ -124,7 +124,7 @@ do_leave(State, Ref, ChatName) ->
 	case maps:is_key(ChatName, State#cl_st.con_ch) of
 		false -> {err, State};
 		true -> whereis(server)!{self(),Ref, leave, ChatName},
-				receive {ChatPID, Ref, ack_leave} ->
+				receive {_ChatPID, Ref, ack_leave} ->
 					{ok, #cl_st {
 					gui = State#cl_st.gui,
 					nick = State#cl_st.nick,
@@ -140,8 +140,8 @@ do_new_nick(State, Ref, NewNick) ->
 		true -> {err_same, State};
 		false -> whereis(server)!{self(),Ref, nick, NewNick},
 			receive
-					{S,Ref,err_nick_used} -> {err_nick_used, State};
-					{S,Ref,ok_nick} -> {ok_nick, #cl_st {
+					{_S,Ref,err_nick_used} -> {err_nick_used, State};
+					{_S,Ref,ok_nick} -> {ok_nick, #cl_st {
 					gui = State#cl_st.gui,
 					nick = NewNick,
 					con_ch =State#cl_st.con_ch
@@ -167,6 +167,6 @@ do_new_incoming_msg(State, _Ref, CliNick, ChatName, Msg) ->
 %% executes quit protocol from client perspective
 do_quit(State, Ref) ->
 	whereis(server)!{self(),Ref,quit},
-	receive {S,Ref,ack_quit} -> {ack_quit, State}
+	receive {_S,Ref,ack_quit} -> {ack_quit, State}
 	end.
 
