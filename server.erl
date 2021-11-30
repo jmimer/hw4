@@ -133,7 +133,7 @@ quick_helper(State,Ref, ClientPID,Matches)->
 		[] -> 
 			[];
 		[H|T] -> 
-			ChatPID = map:get(H, State#serv_st.chatrooms),
+			ChatPID = maps:get(H, State#serv_st.chatrooms),
 			ChatPID!{self(), Ref, unregister, ClientPID},
 			quick_helper(State,Ref, ClientPID,T)
 	end.
@@ -143,9 +143,9 @@ update_registrations(State, ClientPID, Matches)->
 		[] ->
 			[];
 		[H|T] ->
-			ClientPIDs = map:get(H, State#serv_st.registrations),
+			ClientPIDs = maps:get(H, State#serv_st.registrations),
 			Updated = lists:delete(ClientPID, ClientPIDs),
-			maps:update(H, Updated, State#serv_st.registrations),
+			maps:put(H, Updated, State#serv_st.registrations),
 			update_registrations(State, ClientPID, T)
 	end.
 
@@ -157,7 +157,7 @@ update_registrations(State, ClientPID, Matches)->
 do_client_quit(State, Ref, ClientPID) ->
 	UpdatedNicks = maps:remove(ClientPID, State#serv_st.nicks),
 	AllChatRoomNames = maps:keys(State#serv_st.registrations),
-	Matches = lists:filter(fun(X) -> lists:member(ClientPID, map:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
+	Matches = lists:filter(fun(X) -> lists:member(ClientPID, maps:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
 	quick_helper(State,Ref, ClientPID,Matches),
 	UpdatedRegistrations = update_registrations(State,ClientPID,Matches),
 	ClientPID!{self(), Ref, ack_quit},

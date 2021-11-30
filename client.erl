@@ -124,7 +124,7 @@ do_leave(State, Ref, ChatName) ->
 	case maps:is_key(ChatName, State#cl_st.con_ch) of
 		false -> {err, State};
 		true -> whereis(server)!{self(),Ref, leave, ChatName},
-				receive {ChatPID, Ref, ack_leave, History} ->
+				receive {ChatPID, Ref, ack_leave} ->
 					{ok, #cl_st {
 					gui = State#cl_st.gui,
 					nick = State#cl_st.nick,
