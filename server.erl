@@ -111,7 +111,7 @@ nick_helper(State,Ref, ClientPID, NewNick,Matches)->
 	end.
 
 do_new_nick(State, Ref, ClientPID, NewNick) ->
-	AllNicks = maps:value(State#serv_st.nicks),
+	AllNicks = maps:values(State#serv_st.nicks),
 	case lists:member(NewNick, AllNicks) of 
 		true -> 
 			ClientPID!{self(),Ref,err_nick_used}, 
@@ -136,6 +136,7 @@ quick_helper(State,Ref, ClientPID,Matches)->
 			ChatPID!{self(), Ref, unregister, ClientPID},
 			quick_helper(State,Ref, ClientPID,T)
 	end.
+
 update_registrations(State, ClientPID, Matches)->
 	case Matches of
 		[] ->
