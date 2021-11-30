@@ -105,7 +105,7 @@ nick_helper(State,Ref, ClientPID, NewNick,Matches)->
 		[] -> 
 			[];
 		[H|T] -> 
-			ChatPID = map:get(H, State#serv_st.chatrooms),
+			ChatPID = maps:get(H, State#serv_st.chatrooms),
 			ChatPID!{self(), Ref, update_nick, ClientPID, NewNick},
 			nick_helper(State,Ref, ClientPID, NewNick,T)
 	end.
@@ -119,7 +119,7 @@ do_new_nick(State, Ref, ClientPID, NewNick) ->
 			State;
 		false ->
 			AllChatRoomNames = maps:keys(State#serv_st.registrations),
-			Matches = lists:filter(fun(X) -> lists:member(ClientPID, map:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
+			Matches = lists:filter(fun(X) -> lists:member(ClientPID, maps:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
 			nick_helper(State,Ref, ClientPID,NewNick,Matches),
 			ClientPID!{self(),Ref,ok_nick},
 			#serv_st{
