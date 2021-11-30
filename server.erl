@@ -138,15 +138,12 @@ quick_helper(State,Ref, ClientPID,Matches)->
 			quick_helper(State,Ref, ClientPID,T)
 	end.
 
-update_registrations(State, ClientPID, Matches)->
-	case Matches of
+update_registrations(ClientPID, Regs)->
+	case maps:to_list(Regs) of
 		[] ->
 			[];
-		[H|T] ->
-			ClientPIDs = maps:get(H, State#serv_st.registrations),
-			Updated = lists:delete(ClientPID, ClientPIDs),
-			maps:put(H, Updated, State#serv_st.registrations),
-			update_registrations(State, ClientPID, T)
+		[{X,Y}|T] ->
+			[{X,lists:delete(ClientPID, Y)}] ++ update_registrations(ClientPID, T)
 	end.
 
 %% executes client quit protocol from server perspective
@@ -159,11 +156,11 @@ do_client_quit(State, Ref, ClientPID) ->
 	AllChatRoomNames = maps:keys(State#serv_st.registrations),
 	Matches = lists:filter(fun(X) -> lists:member(ClientPID, maps:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
 	quick_helper(State,Ref, ClientPID,Matches),
-	UpdatedRegistrations = update_registrations(State,ClientPID,Matches),
+	UpdatedRegistrations = update_registrations(ClientPID,State#serv_st.registrations),
 	ClientPID!{self(), Ref, ack_quit},
 	#serv_st{
 		nicks = UpdatedNicks,
-		registrations = UpdatedRegistrations,
+		registrations = maps:from_list(UpdatedRegistrations),
 		chatrooms = State#serv_st.chatrooms
 	}.
 
