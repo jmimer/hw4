@@ -102,12 +102,12 @@ do_leave(ChatName, ClientPID, Ref, State) ->
 
 nick_helper(State,Ref, ClientPID, NewNick,Matches)->
 	case Matches of
-		[] -> 
-			[];
 		[H|T] -> 
 			ChatPID = maps:get(H, State#serv_st.chatrooms),
 			ChatPID!{self(), Ref, update_nick, ClientPID, NewNick},
-			nick_helper(State,Ref, ClientPID, NewNick,T)
+			nick_helper(State,Ref, ClientPID, NewNick,T);
+		[] ->
+			[]
 	end.
 
 do_new_nick(State, Ref, ClientPID, NewNick) ->
@@ -129,12 +129,12 @@ do_new_nick(State, Ref, ClientPID, NewNick) ->
 	end.
 quick_helper(State,Ref, ClientPID,Matches)->
 	case Matches of
-		[] -> 
-			[];
 		[H|T] -> 
 			ChatPID = maps:get(H, State#serv_st.chatrooms),
 			ChatPID!{self(), Ref, unregister, ClientPID},
-			quick_helper(State,Ref, ClientPID,T)
+			quick_helper(State,Ref, ClientPID,T);
+		[] ->
+			[]
 	end.
 
 update_registrations(ClientPID, Regs)->
