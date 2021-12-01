@@ -139,10 +139,10 @@ quick_helper(State,Ref, ClientPID,Matches)->
 
 update_registrations(ClientPID, Regs)->
 	case maps:to_list(Regs) of
-		[] ->
-			[];
 		[{X,Y}|T] ->
-			[{X,lists:delete(ClientPID, Y)}] ++ update_registrations(ClientPID, T)
+			[{X,lists:delete(ClientPID, Y)}] ++ update_registrations(ClientPID, T);
+		[] ->
+			[]
 	end.
 
 %% executes client quit protocol from server perspective
