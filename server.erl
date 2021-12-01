@@ -138,7 +138,7 @@ quick_helper(State,Ref, ClientPID,Matches)->
 	end.
 
 update_registrations(ClientPID, Regs)->
-	case maps:to_list(Regs) of
+	case Regs of
 		[{X,Y}|T] ->
 			[{X,lists:delete(ClientPID, Y)}] ++ update_registrations(ClientPID, T);
 		[] ->
@@ -155,7 +155,7 @@ do_client_quit(State, Ref, ClientPID) ->
 	AllChatRoomNames = maps:keys(State#serv_st.registrations),
 	Matches = lists:filter(fun(X) -> lists:member(ClientPID, maps:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
 	quick_helper(State,Ref, ClientPID,Matches),
-	UpdatedRegistrations = maps:from_list(update_registrations(ClientPID,State#serv_st.registrations)),
+	UpdatedRegistrations = maps:from_list(update_registrations(ClientPID,maps:to_list(State#serv_st.registrations))),
 	ClientPID!{self(), Ref, ack_quit},
 	#serv_st{
 		nicks = UpdatedNicks,
