@@ -155,11 +155,11 @@ do_client_quit(State, Ref, ClientPID) ->
 	AllChatRoomNames = maps:keys(State#serv_st.registrations),
 	Matches = lists:filter(fun(X) -> lists:member(ClientPID, maps:get(X,State#serv_st.registrations)) end,AllChatRoomNames),
 	quick_helper(State,Ref, ClientPID,Matches),
-	UpdatedRegistrations = maps:from_list(update_registrations(ClientPID,maps:to_list(State#serv_st.registrations))),
+	UpdatedRegistrations = update_registrations(ClientPID,maps:to_list(State#serv_st.registrations)),
 	ClientPID!{self(), Ref, ack_quit},
 	#serv_st{
 		nicks = UpdatedNicks,
-		registrations = UpdatedRegistrations,
+		registrations = maps:from_list(UpdatedRegistrations),
 		chatrooms = State#serv_st.chatrooms
 	}.
 
